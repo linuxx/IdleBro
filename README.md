@@ -1,4 +1,4 @@
-![logo](https://github.com/linuxx/IdleBro/blob/main/images/logo.gif?raw=true)
+![logo](https://github.com/linuxx/IdleBro/blob/main/images/logobro.gif?raw=true)
 
 # IdleBro
 

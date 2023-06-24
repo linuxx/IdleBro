@@ -20,9 +20,9 @@ https://docs.oracle.com/en-us/iaas/Content/FreeTier/freetier_topic-Always_Free_R
 ## Requirements
 You must have g++ installed:
 
-	```
+   ```
 	sudo apt install g++
-	```
+   ```
 
 ## Installation
 

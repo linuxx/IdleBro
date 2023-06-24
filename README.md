@@ -31,7 +31,7 @@ You must have g++ installed:
 1. Clone the IdleBro repository:
 
    ```
-   git clone https://github.com/your-username/IdleBro.git
+   git clone https://github.com/linuxx/IdleBro.git
    ```
 
 2. Change into the IdleBro directory:
@@ -84,6 +84,7 @@ IdleBro will continue running in the background, consuming CPU and memory resour
 ## Results
 
 ![image of CPU graph](https://github.com/linuxx/IdleBro/blob/main/images/cpu.gif?raw=true)
+![image top](https://github.com/linuxx/IdleBro/blob/main/images/top.gif?raw=true)
 
 ## License
 

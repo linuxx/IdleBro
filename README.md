@@ -1,3 +1,5 @@
+![logo](https://github.com/linuxx/IdleBro/blob/main/images/logo.gif?raw=true)
+
 # IdleBro
 
 IdleBro is a C++ program designed to prevent Oracle's Free Tier compute instances from being shut down due to idle resource usage. Oracle's Free Tier has certain conditions that deem an instance as idle, leading to possible reclamation by Oracle. IdleBro helps keep your compute instance active by consuming CPU and memory resources, ensuring it meets the utilization criteria.

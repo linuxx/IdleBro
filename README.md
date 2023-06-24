@@ -18,7 +18,8 @@ https://docs.oracle.com/en-us/iaas/Content/FreeTier/freetier_topic-Always_Free_R
 - Prevents Oracle's Free Tier compute instances from being shut down due to idle resource usage.
 
 ## Requirements
-You must have g++ installed
+You must have g++ installed:
+
 	```shell
 	sudo apt install g++
 
@@ -54,7 +55,29 @@ The script will perform the following tasks:
 - Set the appropriate permissions
 - Set IdleBro to start on boot
 
+#Configuration
+The configuration file for IdleBro is located at /etc/idlebro/idlebro.conf. You can adjust the following parameters:
 
+- cpu_upper_limit: The upper limit of CPU utilization (percentage).
+- cpu_lower_limit: The lower limit of CPU utilization (percentage).
+- memory_upper_limit: The upper limit of memory consumption (in MB).
+- memory_lower_limit: The lower limit of memory consumption (in MB).
+- randomness: The randomness factor for dynamic fluctuations (1 to 100).
+
+#Usage
+To interact with the IdleBro daemon, you can use the following commands:
+
+- Start the IdleBro daemon: sudo service idlebro start
+- Stop the IdleBro daemon: sudo service idlebro stop
+- Restart the IdleBro daemon: sudo service idlebro restart
+
+IdleBro will continue running in the background, consuming CPU and memory resources based on the configured parameters.
+
+#Results
+![image of CPU graph](https://github.com/linuxx/IdleBro/blob/main/images/cpu.gif?raw=true)
+
+#License
+This project is licensed under the MIT License. See the LICENSE file for details.
 
 "Play stupid games, win stupid prizes"
 								-Somebody

@@ -59,8 +59,7 @@ The script will perform the following tasks:
 - Set the appropriate permissions
 - Set IdleBro to start on boot
 
-
-##Configuration
+## Configuration
 
 The configuration file for IdleBro is located at /etc/idlebro/idlebro.conf. You can adjust the following parameters:
 
@@ -71,7 +70,7 @@ The configuration file for IdleBro is located at /etc/idlebro/idlebro.conf. You 
 - randomness: The randomness factor for dynamic fluctuations (1 to 100).
 
 
-##Usage
+## Usage
 
 To interact with the IdleBro daemon, you can use the following commands:
 
@@ -82,12 +81,12 @@ To interact with the IdleBro daemon, you can use the following commands:
 IdleBro will continue running in the background, consuming CPU and memory resources based on the configured parameters.
 
 
-##Results
+## Results
 
 ![image of CPU graph](https://github.com/linuxx/IdleBro/blob/main/images/cpu.gif?raw=true)
 
 
-##License
+## License
 
 This project is licensed under the MIT License. See the LICENSE file for details.
 

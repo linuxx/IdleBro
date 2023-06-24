@@ -12,7 +12,7 @@ if [ -f "/opt/idlebro/IdleBro" ]; then
 fi
 
 # Compile IdleBro.cpp and generate IdleBro binary
-g++ IdleBro.cpp -o IdleBro
+g++ -o IdleBro IdleBro.cpp -static-libgcc -static-libstdc++
 
 # Create /opt/idlebro directory
 mkdir -p /opt/idlebro

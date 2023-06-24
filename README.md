@@ -20,30 +20,35 @@ https://docs.oracle.com/en-us/iaas/Content/FreeTier/freetier_topic-Always_Free_R
 ## Requirements
 You must have g++ installed:
 
-	```shell
+	```
 	sudo apt install g++
+	```
 
 ## Installation
 
 1. Clone the IdleBro repository:
 
-   ```shell
+   ```
    git clone https://github.com/your-username/IdleBro.git
+   ```
 
 2. Change into the IdleBro directory:
 
-	```shell
+	```
 	cd IdleBro
+	```
 
 3. Make the setup.sh script executable:
 	
-	```shell
+	```
 	chmod +x setup.sh
+	```
 	
 4. Run the setup.sh script to install IdleBro and set up the necessary directories and files:
 
-	```shell
+	```
 	sudo ./setup.sh
+	```
 
 The script will perform the following tasks:
 
@@ -55,6 +60,7 @@ The script will perform the following tasks:
 - Set IdleBro to start on boot
 
 ##Configuration
+
 The configuration file for IdleBro is located at /etc/idlebro/idlebro.conf. You can adjust the following parameters:
 
 - cpu_upper_limit: The upper limit of CPU utilization (percentage).
@@ -64,6 +70,7 @@ The configuration file for IdleBro is located at /etc/idlebro/idlebro.conf. You 
 - randomness: The randomness factor for dynamic fluctuations (1 to 100).
 
 ##Usage
+
 To interact with the IdleBro daemon, you can use the following commands:
 
 - Start the IdleBro daemon: sudo service idlebro start
@@ -73,9 +80,11 @@ To interact with the IdleBro daemon, you can use the following commands:
 IdleBro will continue running in the background, consuming CPU and memory resources based on the configured parameters.
 
 ##Results
+
 ![image of CPU graph](https://github.com/linuxx/IdleBro/blob/main/images/cpu.gif?raw=true)
 
 ##License
+
 This project is licensed under the MIT License. See the LICENSE file for details.
 
 "Play stupid games, win stupid prizes"

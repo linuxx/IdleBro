@@ -71,7 +71,6 @@ The configuration file for IdleBro is located at /etc/idlebro/idlebro.conf. You 
 - memory_lower_limit: The lower limit of memory consumption (in MB).
 - randomness: The randomness factor for dynamic fluctuations (1 to 100).
 
-
 ## Usage
 
 To interact with the IdleBro daemon, you can use the following commands:
@@ -82,15 +81,16 @@ To interact with the IdleBro daemon, you can use the following commands:
 
 IdleBro will continue running in the background, consuming CPU and memory resources based on the configured parameters.
 
-
 ## Results
 
 ![image of CPU graph](https://github.com/linuxx/IdleBro/blob/main/images/cpu.gif?raw=true)
-
 
 ## License
 
 This project is licensed under the MIT License. See the LICENSE file for details.
 
+## Personal Note
+I dont think its cool to burn resources on a free tier service within a shared resource. I also don't think its cool to shutdown resoures that are idle, or below 15% CPU. 
+
 "Play stupid games, win stupid prizes"
-								-Somebody
+							-Somebody

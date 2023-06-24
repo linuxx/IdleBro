@@ -91,7 +91,7 @@ IdleBro will continue running in the background, consuming CPU and memory resour
 This project is licensed under the MIT License. See the LICENSE file for details.
 
 ## Personal Note
-I dont think its cool to burn resources on a free tier IaaS shared resources. I also don't think its cool to shutdown resoures that are idle, or below 15% CPU. Idle systems shouldn't be discouraged, or at minimum this should be configurable.  
+I dont think its cool to burn resources on a free tier IaaS shared resource. I also don't think its cool to shutdown resoures that are idle, or below 15% CPU. Idle systems shouldn't be discouraged, or at minimum this should be configurable.  
 
 "Play stupid games, win stupid prizes"
 							-Somebody

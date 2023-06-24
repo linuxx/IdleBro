@@ -72,8 +72,8 @@ int main() {
     std::uniform_int_distribution<int> distMemory(memoryLowerLimit, memoryUpperLimit);
 
     // Infinite loop consuming CPU and memory
-	// Infinite loop consuming CPU and memory
-	while (true) {
+    // Infinite loop consuming CPU and memory
+    while (true) {
         // Generate random CPU and memory values within the specified range
         int cpuPercent = distCpu(rng);
         int memoryMB = distMemory(rng);
@@ -100,8 +100,8 @@ int main() {
 
         // Cleanup allocated memory
         delete[] memoryBuffer;
-	}
+    }
     //all done
-	return 0;
+    return 0;
 }
 

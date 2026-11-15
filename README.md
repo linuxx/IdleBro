@@ -19,31 +19,40 @@ Memory is not a percentage target. No disk or network traffic is generated.
 
 ## Install
 
-Requires Linux with /proc, systemd, and g++ with C++17 support.
+Requires Linux with /proc, systemd, Git, and g++ with C++17 support.
+On Debian or Ubuntu, install the dependencies and download the repository:
 
 ```sh
+sudo apt update
+sudo apt install -y git g++ python3
+git clone https://github.com/linuxx/IdleBro.git
+cd IdleBro
 sudo bash install.sh
 sudo systemctl start idlebro
 systemctl status idlebro
 journalctl -u idlebro
 ```
 
-The installer compiles and validates before replacing the executable, preserves
-existing configuration, and enables startup at boot. It does not start or restart
-the service automatically.
+The installer builds the program from source with g++ and enables startup at boot.
+The start command above launches it immediately. For an existing installation, use
+the upgrade instructions below.
 
 ## Upgrade an existing running installation
 
-From the updated repository, run:
+Download a fresh copy into a temporary directory, then run the upgrade script.
+On Debian or Ubuntu:
 
 ```sh
-bash upgrade.sh --check
+sudo apt update
+sudo apt install -y git g++ python3
+upgrade_dir=$(mktemp -d)
+git clone https://github.com/linuxx/IdleBro.git "$upgrade_dir/IdleBro"
+cd "$upgrade_dir/IdleBro"
 sudo bash upgrade.sh
 ```
 
-The check command compiles and validates the migrated configuration without changing
-installed files. The upgrade command requires Python 3 as well as the installation
-requirements. It builds before stopping anything, saves previous files under
+The upgrade script builds the program from source with g++ before stopping anything.
+It requires Python 3 as well as the installation requirements, saves previous files under
 `/var/backups/idlebro-upgrade-*`, stops the installed executable's processes, removes
 legacy SysV boot registration, installs the systemd service, and starts it. Duplicate
 legacy processes are stopped using their actual executable paths, not a stale PID
@@ -64,7 +73,6 @@ and attempts service recovery; inspect its errors if the previous service cannot
 Edit /etc/idlebro/idlebro.conf, then run:
 
 ```sh
-/opt/idlebro/IdleBro --check-config
 sudo systemctl restart idlebro
 ```
 
@@ -89,16 +97,4 @@ quotas and cpusets are not supported; run on a normal Linux host/VM. Other proce
 can use memory without meaningful CPU use: the available-memory reserve provides
 additional protection in that case.
 
-## Validation
-
-Run `python3 tests/test_idlebro.py` for build, configuration, resource, and shutdown
-checks. Tests use temporary paths and never install a system service.
-
 Licensed under the MIT License.
-
-## Mascot
-
-The README mascot is saved at `images/idlebro-dude.png`, generated using the built-in
-image generation tool. Prompt: a relaxed, friendly bearded computer dude in sunglasses
-and a hoodie beside a small server; polished hand-drawn digital illustration, bold
-silhouette, clean outlines, restrained colors, plain light background, no text.

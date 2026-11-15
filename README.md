@@ -53,7 +53,7 @@ sudo bash upgrade.sh
 
 The upgrade script builds the program from source with g++ before stopping anything.
 It requires Python 3 as well as the installation requirements, saves previous files under
-`/var/backups/idlebro-upgrade-*`, stops the installed executable's processes, removes
+`/var/backups/idlebro-deploy-*`, stops the installed executable's processes, removes
 legacy SysV boot registration, installs the systemd service, and starts it. Duplicate
 legacy processes are stopped using their actual executable paths, not a stale PID
 file. Expect a brief interruption while it replaces the service.
@@ -63,10 +63,17 @@ Custom CPU and memory limits are preserved. For legacy configurations with
 New activity thresholds use the defaults in idlebro.conf. Malformed or unknown
 configuration values abort the upgrade before stopping the running version.
 
-If a command fails after shutdown begins, the script attempts to restore the backed-up
-files and restart the previous service. Keep the printed backup path until you have
-checked `systemctl status idlebro` and `journalctl -u idlebro`. Rollback restores files
-and attempts service recovery; inspect its errors if the previous service cannot start.
+Both scripts print timestamped progress, commands, and explicit errors. They check
+dependencies, reject overlapping deployments, and back up files and boot links before
+changing the installation. File replacements use atomic renames. The upgrade checks
+that the new process remains healthy for five seconds before reporting success.
+
+If a command fails or a catchable interruption occurs after changes begin, the script
+attempts to restore the backed-up files and boot links and restart the previous service
+if it was running. Keep the printed backup path until you have
+checked `systemctl status idlebro` and `journalctl -u idlebro`. Inspect any rollback errors if the previous service cannot start. Power loss,
+SIGKILL, or an unwritable filesystem can prevent automatic recovery; the backup is
+retained for manual recovery.
 
 ## Configuration
 

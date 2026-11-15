@@ -1,31 +1,24 @@
 #!/bin/bash
-set -euo pipefail
+set -Eeuo pipefail
 cd -- "$(dirname -- "${BASH_SOURCE[0]}")"
-if [[ $EUID -ne 0 ]]; then
-    echo 'Run this installer as root.' >&2
-    exit 1
+source ./deploy-common.sh
+[[ $# == 0 ]] || fail 'Usage: sudo bash install.sh'
+log 'Starting IdleBro installation.'
+preflight
+for path in /etc/init.d/idlebro /opt/idlebro/IdleBro /etc/systemd/system/idlebro.service; do
+    [[ ! -e $path && ! -L $path ]] || fail "Existing installation found at $path; use sudo bash upgrade.sh."
+done
+build
+if [[ -e /etc/idlebro/idlebro.conf ]]; then
+    log 'Preserving and validating existing configuration.'
+    run cp -- /etc/idlebro/idlebro.conf "$stage/idlebro.conf"
+else
+    run cp -- idlebro.conf "$stage/idlebro.conf"
 fi
-if [[ -e /etc/init.d/idlebro || -e /opt/idlebro/IdleBro ]]; then
-    echo 'Existing installation found; use: sudo bash upgrade.sh' >&2
-    exit 1
-fi
-command -v g++ >/dev/null
-command -v systemctl >/dev/null
-build_dir=$(mktemp -d)
-trap 'rm -rf -- "$build_dir"' EXIT
-g++ -std=c++17 -O2 -Wall -Wextra -Wpedantic -pthread IdleBro.cpp -o "$build_dir/IdleBro"
-"$build_dir/IdleBro" --config idlebro.conf --check-config
-# Validate an existing configuration before touching the installed service.
-if [[ -f /etc/idlebro/idlebro.conf ]]; then
-    "$build_dir/IdleBro" --config /etc/idlebro/idlebro.conf --check-config
-fi
-install -d -m 755 /opt/idlebro /etc/idlebro
-install -m 755 "$build_dir/IdleBro" /opt/idlebro/IdleBro.new
-mv -f /opt/idlebro/IdleBro.new /opt/idlebro/IdleBro
-if [[ ! -f /etc/idlebro/idlebro.conf ]]; then
-    install -m 644 idlebro.conf /etc/idlebro/idlebro.conf
-fi
-install -m 644 idlebro.service /etc/systemd/system/idlebro.service
-systemctl daemon-reload
-systemctl enable idlebro.service
-echo 'Installed. Start with: systemctl start idlebro'
+run "$stage/IdleBro" --config "$stage/idlebro.conf" --check-config
+snapshot
+changed=true
+apply_files
+committed=true
+log "SUCCESS: installed and enabled for boot. Backup: $backup"
+log 'Start now with: sudo systemctl start idlebro'

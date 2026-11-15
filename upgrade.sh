@@ -1,23 +1,20 @@
 #!/bin/bash
-# Upgrade a running legacy SysV or systemd installation. No downloads are performed.
-set -euo pipefail
+set -Eeuo pipefail
 cd -- "$(dirname -- "${BASH_SOURCE[0]}")"
+source ./deploy-common.sh
 check_only=false
-if [[ ${1:-} == --check && $# == 1 ]]; then
-    check_only=true
-elif [[ $# != 0 ]]; then
-    echo 'Usage: bash upgrade.sh [--check]' >&2
-    exit 1
+if [[ ${1:-} == --check && $# == 1 ]]; then check_only=true
+elif [[ $# != 0 ]]; then fail 'Usage: sudo bash upgrade.sh [--check]'; fi
+log 'Starting IdleBro upgrade preflight.'
+if $check_only; then
+    require g++ python3
+    stage=$(mktemp -d)
+else
+    preflight
+    [[ -x /opt/idlebro/IdleBro ]] || fail 'No installed executable; use sudo bash install.sh.'
 fi
-if ! $check_only && [[ $EUID -ne 0 ]]; then
-    echo 'Run this upgrade as root, or use --check to validate the build.' >&2
-    exit 1
-fi
-for tool in g++ python3 systemctl; do command -v "$tool" >/dev/null; done
-stage=$(mktemp -d)
-trap 'rm -rf -- "$stage"' EXIT
-g++ -std=c++17 -O2 -Wall -Wextra -Wpedantic -pthread IdleBro.cpp -o "$stage/IdleBro"
-# Remove the obsolete knob; upgrade original CPU defaults while retaining custom limits.
+build
+log 'Migrating configuration; preserving custom limits and removing legacy RANDOMNESS.'
 python3 - /etc/idlebro/idlebro.conf idlebro.conf "$stage/idlebro.conf" <<'PY'
 import pathlib, sys
 old, defaults, output = map(pathlib.Path, sys.argv[1:])
@@ -50,62 +47,42 @@ for line in base.splitlines():
     lines.append(key + '=' + values[key] if key in values else line)
 output.write_text('\n'.join(lines) + '\n')
 PY
-"$stage/IdleBro" --config "$stage/idlebro.conf" --check-config
+run "$stage/IdleBro" --config "$stage/idlebro.conf" --check-config
 if $check_only; then
-    echo 'Build and configuration migration validated; no installed files changed.'
+    log 'SUCCESS: build and configuration migration checked; installed files unchanged.'
     cat "$stage/idlebro.conf"
     exit 0
 fi
-[[ -x /opt/idlebro/IdleBro ]] || { echo 'No installed IdleBro; use install.sh.' >&2; exit 1; }
-# Back up every file that will be replaced before stopping the service.
-install -d -m 755 /var/backups
-backup=$(mktemp -d /var/backups/idlebro-upgrade-XXXXXXXX)
-paths=(/opt/idlebro/IdleBro /etc/idlebro/idlebro.conf /etc/systemd/system/idlebro.service /etc/init.d/idlebro)
-for path in "${paths[@]}"; do
-    if [[ -e $path ]]; then cp -a --parents -- "$path" "$backup"; fi
-done
 legacy=false
 [[ ! -e /etc/init.d/idlebro ]] || legacy=true
-$legacy && command -v update-rc.d >/dev/null
-changed=false
-rollback() {
-    status=$?
-    trap - ERR
-    set +e
-    if $changed; then
-        echo "Upgrade failed; restoring files from $backup" >&2
-        systemctl stop idlebro.service || true
-        if [[ ! -e $backup/etc/systemd/system/idlebro.service ]]; then
-            systemctl disable idlebro.service || true
-        fi
-        for path in "${paths[@]}"; do
-            if [[ -e $backup$path ]]; then
-                cp -a -- "$backup$path" "$path"
-            else
-                rm -f -- "$path"
-            fi
-        done
-        if $legacy; then update-rc.d idlebro defaults || true; fi
-        systemctl daemon-reload || true
-        systemctl start idlebro.service || echo 'Previous service could not be restarted; inspect the backup and journal.' >&2
-    fi
-    exit "$status"
-}
-trap rollback ERR
-changed=true
-# Never trust a legacy PID file: identify all actual installed executable instances.
-# This also cleans up duplicate instances left by repeated old `service start` calls.
-if ! $legacy; then systemctl stop idlebro.service; fi
+if $legacy; then require update-rc.d; fi
+# Snapshot actual processes; never trust legacy PID files.
 pids=()
 for exe in /proc/[0-9]*/exe; do
     target=$(readlink "$exe" 2>/dev/null || true)
     if [[ $target == /opt/idlebro/IdleBro || $target == '/opt/idlebro/IdleBro (deleted)' ]]; then
         pid=${exe#/proc/}; pid=${pid%/exe}
         pids+=("$pid")
-        kill -TERM "$pid" 2>/dev/null || true
     fi
 done
-for attempt in {1..50}; do
+if systemctl is-active --quiet idlebro.service || ((${#pids[@]} > 0)); then was_active=true; fi
+log "Previous service active: $was_active; legacy SysV: $legacy; executable instances: ${#pids[@]}"
+snapshot
+changed=true
+if ! $legacy; then
+    log 'Stopping systemd service before replacing files.'
+    run systemctl stop idlebro.service
+fi
+# Re-check executable identity before each signal. Do not execute the legacy stop
+# script: its PID file could identify an unrelated process.
+for pid in "${pids[@]}"; do
+    target=$(readlink "/proc/$pid/exe" 2>/dev/null || true)
+    if [[ $target == /opt/idlebro/IdleBro || $target == '/opt/idlebro/IdleBro (deleted)' ]]; then
+        log "Requesting clean termination of installed IdleBro process $pid."
+        kill -TERM "$pid" || [[ ! -e /proc/$pid/exe ]]
+    fi
+done
+for attempt in {1..100}; do
     alive=false
     for pid in "${pids[@]}"; do
         target=$(readlink "/proc/$pid/exe" 2>/dev/null || true)
@@ -114,26 +91,32 @@ for attempt in {1..50}; do
     $alive || break
     sleep 0.1
 done
-if $alive; then echo 'Old process did not stop; refusing to start a second instance.' >&2; false; fi
+if $alive; then fail 'Old executable did not stop within 10 seconds; refusing replacement.'; fi
+log 'All identified old processes have stopped.'
 if $legacy; then
-    # Clear generated SysV unit state only after removing its untrusted PID file.
-    rm -f /var/run/idlebro.pid
-    systemctl daemon-reload
-    systemctl stop idlebro.service
-    update-rc.d -f idlebro remove
-    rm -f /etc/init.d/idlebro
+    log 'Removing legacy startup registration and unsafe PID file.'
+    run update-rc.d -f idlebro remove
+    run rm -f /etc/init.d/idlebro /var/run/idlebro.pid
+    run systemctl daemon-reload
+    # The generated unit may retain active state; its ExecStop file is now gone.
+    if ! run systemctl stop idlebro.service; then
+        log 'Legacy unit stop reported an error after removal; checking inactive state.'
+        if systemctl is-active --quiet idlebro.service; then fail 'Legacy unit remains active.'; fi
+    fi
 fi
-rm -f /var/run/idlebro.pid
-install -m 755 "$stage/IdleBro" /opt/idlebro/IdleBro.new
-mv -f /opt/idlebro/IdleBro.new /opt/idlebro/IdleBro
-install -d -m 755 /etc/idlebro
-install -m 644 "$stage/idlebro.conf" /etc/idlebro/idlebro.conf
-install -m 644 idlebro.service /etc/systemd/system/idlebro.service
-systemctl daemon-reload
-systemctl enable idlebro.service
-systemctl start idlebro.service
-sleep 2
-systemctl is-active --quiet idlebro.service
-trap - ERR
-echo "Upgrade complete; IdleBro is running. Previous files: $backup"
-echo 'Inspect activity with: journalctl -u idlebro -f'
+apply_files
+run systemctl reset-failed idlebro.service
+run systemctl start idlebro.service
+log 'Checking service health for five seconds.'
+initial_pid=$(systemctl show -p MainPID --value idlebro.service)
+[[ $initial_pid =~ ^[1-9][0-9]*$ ]] || fail 'Service has no main process.'
+for attempt in {1..10}; do
+    sleep 0.5
+    run systemctl is-active --quiet idlebro.service
+    current_pid=$(systemctl show -p MainPID --value idlebro.service)
+    [[ $(readlink "/proc/$current_pid/exe") == /opt/idlebro/IdleBro ]] || fail 'Service main process is not the installed IdleBro executable.'
+    [[ $current_pid == "$initial_pid" ]] || fail 'Service restarted during health checks.'
+done
+committed=true
+log "SUCCESS: upgraded and running (PID $initial_pid). Backup: $backup"
+log 'Inspect activity: journalctl -u idlebro -f'

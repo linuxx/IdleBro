@@ -1,97 +1,104 @@
-![logo](https://github.com/linuxx/IdleBro/blob/main/images/logobro.gif?raw=true)
-
 # IdleBro
 
-IdleBro is a C++ program designed to prevent Oracle's Free Tier compute instances from being shut down due to idle resource usage. Oracle's Free Tier has certain conditions that deem an instance as idle, leading to possible reclamation by Oracle. IdleBro helps keep your compute instance active by consuming CPU and memory resources, ensuring it meets the utilization criteria.
+<img src="images/idlebro-dude.png" alt="IdleBro dude relaxing beside a server" width="360">
 
-## Overview
+IdleBro generates variable background CPU and memory activity on Linux. It samples
+system CPU usage every 250 ms, subtracts its own usage, and yields when other
+processes become active. It does not guarantee any cloud provider's retention policy.
 
-Oracle's Free Tier compute instances may be reclaimed if they are deemed idle for a period of 7 days based on specific utilization thresholds. IdleBro addresses this issue by continuously consuming CPU and memory resources, keeping the utilization levels above the threshold, and preventing the instance from being shut down.
+Defaults target **15–25% of total host CPU capacity**, changing every 5–15 seconds.
+At 5% external CPU usage it pauses and releases its memory. It resumes after external
+CPU usage stays at or below 2% for five seconds. All workers use the lowest nice
+priority; the systemd service also uses Linux's idle CPU scheduling policy, so normal
+work takes priority even between samples. A single busy core on a large host may be
+below the aggregate pause threshold, but still takes scheduling priority.
 
-IdleBro runs as a daemon on Linux and allows you to configure the CPU and memory consumption levels within specified upper and lower limits. It provides flexibility by introducing randomness to the resource consumption, allowing dynamic fluctuations within the configured range.
+Memory varies between 32–96 MiB. Allocations are touched and retained, limited to a
+quarter of available memory above a 512 MiB reserve, and released under pressure.
+Memory is not a percentage target. No disk or network traffic is generated.
 
-https://docs.oracle.com/en-us/iaas/Content/FreeTier/freetier_topic-Always_Free_Resources.htm
+## Install
 
-## Features
+Requires Linux with /proc, systemd, and g++ with C++17 support.
 
-- Runs as a daemon on Linux, ensuring continuous resource consumption.
-- Configurable CPU and memory consumption levels.
-- Randomness factor introduces dynamic fluctuations in resource consumption.
-- Prevents Oracle's Free Tier compute instances from being shut down due to idle resource usage.
+```sh
+sudo bash install.sh
+sudo systemctl start idlebro
+systemctl status idlebro
+journalctl -u idlebro
+```
 
-## Requirements
-You must have g++ installed:
+The installer compiles and validates before replacing the executable, preserves
+existing configuration, and enables startup at boot. It does not start or restart
+the service automatically.
 
-   ```
-	sudo apt install g++
-   ```
+## Upgrade an existing running installation
 
-## Installation
+From the updated repository, run:
 
-1. Clone the IdleBro repository:
+```sh
+bash upgrade.sh --check
+sudo bash upgrade.sh
+```
 
-   ```
-   git clone https://github.com/linuxx/IdleBro.git
-   ```
+The check command compiles and validates the migrated configuration without changing
+installed files. The upgrade command requires Python 3 as well as the installation
+requirements. It builds before stopping anything, saves previous files under
+`/var/backups/idlebro-upgrade-*`, stops the installed executable's processes, removes
+legacy SysV boot registration, installs the systemd service, and starts it. Duplicate
+legacy processes are stopped using their actual executable paths, not a stale PID
+file. Expect a brief interruption while it replaces the service.
 
-2. Change into the IdleBro directory:
+Custom CPU and memory limits are preserved. For legacy configurations with
+`RANDOMNESS`, the original 5–10% CPU defaults become 15–25%; `RANDOMNESS` is removed.
+New activity thresholds use the defaults in idlebro.conf. Malformed or unknown
+configuration values abort the upgrade before stopping the running version.
 
-	```
-	cd IdleBro
-	```
-
-3. Make the setup.sh script executable:
-	
-	```
-	chmod +x setup.sh
-	```
-	
-4. Run the setup.sh script to install IdleBro and set up the necessary directories and files:
-
-	```
-	sudo ./setup.sh
-	```
-
-The script will perform the following tasks:
-
-- Create the necessary directories: /opt/idlebro and /etc/idlebro
-- Copy the IdleBro binary to /opt/idlebro/IdleBro
-- Copy the configuration file to /etc/idlebro/idlebro.conf
-- Copy the init script to /etc/init.d/idlebro
-- Set the appropriate permissions
-- Set IdleBro to start on boot
+If a command fails after shutdown begins, the script attempts to restore the backed-up
+files and restart the previous service. Keep the printed backup path until you have
+checked `systemctl status idlebro` and `journalctl -u idlebro`. Rollback restores files
+and attempts service recovery; inspect its errors if the previous service cannot start.
 
 ## Configuration
 
-The configuration file for IdleBro is located at /etc/idlebro/idlebro.conf. You can adjust the following parameters:
+Edit /etc/idlebro/idlebro.conf, then run:
 
-- cpu_upper_limit: The upper limit of CPU utilization (percentage).
-- cpu_lower_limit: The lower limit of CPU utilization (percentage).
-- memory_upper_limit: The upper limit of memory consumption (in MB).
-- memory_lower_limit: The lower limit of memory consumption (in MB).
-- randomness: The randomness factor for dynamic fluctuations (1 to 100).
+```sh
+/opt/idlebro/IdleBro --check-config
+sudo systemctl restart idlebro
+```
 
-## Usage
+See idlebro.conf for all keys. CPU values are percentages from 0–100, with ordered
+lower/upper bounds. Memory bounds are MiB from 0–4096. Resume CPU must be lower than
+pause CPU. IDLE_SECONDS must be 1–3600. Unknown keys and malformed values are errors.
+Whitespace and # comments are supported. RANDOMNESS has been replaced by automatic
+target changes. Set both memory bounds to zero to disable background memory usage.
 
-To interact with the IdleBro daemon, you can use the following commands:
+For a foreground run without installation:
 
-- Start the IdleBro daemon: sudo service idlebro start
-- Stop the IdleBro daemon: sudo service idlebro stop
-- Restart the IdleBro daemon: sudo service idlebro restart
+```sh
+g++ -std=c++17 -O2 -Wall -Wextra -Wpedantic -pthread IdleBro.cpp -o /tmp/IdleBro
+/tmp/IdleBro --config idlebro.conf
+```
 
-IdleBro will continue running in the background, consuming CPU and memory resources based on the configured parameters.
+SIGINT and SIGTERM request a clean shutdown. systemd manages the single service
+instance; the program runs in the foreground and does not create a PID file.
 
-## Results
+CPU accounting uses host /proc counters and targets host capacity. Container CPU
+quotas and cpusets are not supported; run on a normal Linux host/VM. Other processes
+can use memory without meaningful CPU use: the available-memory reserve provides
+additional protection in that case.
 
-![image of CPU graph](https://github.com/linuxx/IdleBro/blob/main/images/cpu.gif?raw=true)
-![image top](https://github.com/linuxx/IdleBro/blob/main/images/top.gif?raw=true)
+## Validation
 
-## License
+Run `python3 tests/test_idlebro.py` for build, configuration, resource, and shutdown
+checks. Tests use temporary paths and never install a system service.
 
-This project is licensed under the MIT License. See the LICENSE file for details.
+Licensed under the MIT License.
 
-## Personal Note
-I dont think its cool to burn resources on a free tier IaaS shared resource. I also don't think its cool to shutdown resoures that are idle, or below 15% CPU. Idle systems shouldn't be discouraged, or at minimum this should be configurable.  
+## Mascot
 
-"Play stupid games, win stupid prizes"
-							-Somebody
+The README mascot is saved at `images/idlebro-dude.png`, generated using the built-in
+image generation tool. Prompt: a relaxed, friendly bearded computer dude in sunglasses
+and a hoodie beside a small server; polished hand-drawn digital illustration, bold
+silhouette, clean outlines, restrained colors, plain light background, no text.
